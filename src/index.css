@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-bg-primary text-text-primary;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  /* Glass card effect */
+  .glass-card {
+    @apply bg-bg-secondary/50 backdrop-blur-glass border border-white/10 rounded-xl;
+    @apply shadow-glass transition-all duration-300;
+  }
+  
+  .glass-card:hover {
+    @apply border-accent-blue/30 shadow-glass-hover;
+  }
+
+  /* Gradient button */
+  .btn-primary {
+    @apply px-6 py-3 rounded-lg font-medium transition-all duration-200;
+    @apply bg-gradient-to-r from-accent-blue to-accent-cyan;
+    @apply hover:shadow-glow-blue hover:scale-105;
+    @apply active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 rounded-lg font-medium transition-all duration-200;
+    @apply bg-bg-tertiary border border-white/10;
+    @apply hover:border-accent-blue/50 hover:bg-bg-tertiary/80;
+  }
+
+  /* Input fields */
+  .input-field {
+    @apply w-full px-4 py-2 rounded-lg;
+    @apply bg-bg-tertiary border border-white/10;
+    @apply text-text-primary placeholder:text-text-tertiary;
+    @apply focus:outline-none focus:border-accent-blue/50;
+    @apply transition-colors duration-200;
+  }
+
+  /* Status badges */
+  .badge {
+    @apply px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-new {
+    @apply bg-text-tertiary/20 text-text-secondary;
+  }
+
+  .badge-generated {
+    @apply bg-accent-purple/20 text-accent-purple;
+  }
+
+  .badge-approved {
+    @apply bg-accent-green/20 text-accent-green;
+  }
+
+  .badge-sent {
+    @apply bg-accent-blue/20 text-accent-blue;
+  }
+
+  .badge-ai {
+    @apply bg-accent-blue/20 text-accent-blue;
+  }
+
+  .badge-web-design {
+    @apply bg-accent-cyan/20 text-accent-cyan;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #141414;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
