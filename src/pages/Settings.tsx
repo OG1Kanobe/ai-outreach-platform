@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { motion } from 'framer-motion';
+
 import { Save, Webhook, Mail } from 'lucide-react';
 
 export function Settings() {
@@ -138,14 +138,14 @@ export function Settings() {
             <div className="p-4 bg-bg-tertiary rounded-lg">
               <div className="text-xs text-text-tertiary mb-1">Email Generated Callback</div>
               <code className="text-sm text-accent-blue break-all">
-                {import.meta.env.VITE_CONVEX_URL?.replace('.cloud', '.site')}/webhook/email-generated
+                {(import.meta as any).env.VITE_CONVEX_URL?.replace('.cloud', '.site')}/webhook/email-generated
               </code>
             </div>
 
             <div className="p-4 bg-bg-tertiary rounded-lg">
               <div className="text-xs text-text-tertiary mb-1">Email Sent Callback</div>
               <code className="text-sm text-accent-blue break-all">
-                {import.meta.env.VITE_CONVEX_URL?.replace('.cloud', '.site')}/webhook/email-sent
+                {(import.meta as any).env.VITE_CONVEX_URL?.replace('.cloud', '.site')}/webhook/email-sent
               </code>
             </div>
           </div>

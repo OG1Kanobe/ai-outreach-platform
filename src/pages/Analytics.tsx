@@ -1,6 +1,5 @@
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { motion } from 'framer-motion';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export function Analytics() {
