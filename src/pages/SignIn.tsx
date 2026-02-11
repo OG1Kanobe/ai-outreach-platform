@@ -1,15 +1,19 @@
+import { useNavigate } from 'react-router-dom';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 
+
 export function SignIn() {
+  const navigate = useNavigate();
   const { signIn } = useAuthActions();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,6 +22,8 @@ export function SignIn() {
 
     try {
       await signIn('password', { email, password, flow: isSignUp ? 'signUp' : 'signIn' });
+      // SUCCESS! Now move the user
+      navigate('/'); 
     } catch (err) {
       setError(isSignUp ? 'Failed to create account' : 'Invalid credentials');
     } finally {

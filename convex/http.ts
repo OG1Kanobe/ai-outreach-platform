@@ -3,6 +3,7 @@ import { action, httpAction } from "./_generated/server";
 import { internal, api } from "./_generated/api";
 import { httpRouter } from "convex/server";
 import { Doc, Id } from "./_generated/dataModel";
+import { auth } from "./auth";
 
 /**
  * TYPES & INTERFACES
@@ -153,6 +154,8 @@ export const triggerEmailSending = action({
 // --- HTTP ROUTER ---
 
 const http = httpRouter();
+
+auth.addHttpRoutes(http);
 
 http.route({
   path: "/webhook/email-generated",
