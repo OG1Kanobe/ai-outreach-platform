@@ -7,6 +7,12 @@ export default {
   theme: {
     extend: {
       colors: {
+        // --- ADDED THIS TO FIX THE ERROR ---
+        border: "rgba(255, 255, 255, 0.1)", // Default subtle border for dark theme
+        input: "rgba(255, 255, 255, 0.05)",
+        ring: "#3b82f6", 
+        // ------------------------------------
+
         // Dark theme base
         'bg-primary': '#0a0a0a',
         'bg-secondary': '#141414',

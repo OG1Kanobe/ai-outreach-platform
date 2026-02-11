@@ -2,14 +2,25 @@ import { v } from "convex/values";
 import { action, httpAction } from "./_generated/server";
 import { internal, api } from "./_generated/api";
 import { httpRouter } from "convex/server";
+import { Doc, Id } from "./_generated/dataModel";
+
+/**
+ * TYPES & INTERFACES
+ * Explicitly defining these breaks the circular inference loop
+ */
+interface EmailWithLead {
+  email: Doc<"emails">;
+  lead: Doc<"leads">;
+}
+
+// --- ACTIONS ---
 
 // Action: Trigger n8n to generate emails
 export const triggerEmailGeneration = action({
   args: {
     leadIds: v.array(v.id("leads")),
   },
-  handler: async (ctx, args) => {
-    // Get n8n webhook URL from settings
+  handler: async (ctx, args): Promise<{ success: boolean; leadsProcessed: number }> => {
     const setting = await ctx.runQuery(api.settings.get, { 
       key: "n8n_webhook_generate_url" 
     });
@@ -20,17 +31,18 @@ export const triggerEmailGeneration = action({
 
     const webhookUrl = setting.value as string;
 
-    // Get lead data
-    const leads = await Promise.all(
-      args.leadIds.map(id => ctx.runQuery(api.leads.get, { id }))
+    // Get lead data with explicit typing
+    const leads: (Doc<"leads"> | null)[] = await Promise.all(
+      args.leadIds.map((id: Id<"leads">) => ctx.runQuery(api.leads.get, { id }))
     );
 
-    const validLeads = leads.filter(lead => lead !== null);
+    const validLeads: Doc<"leads">[] = leads.filter(
+      (lead): lead is Doc<"leads"> => lead !== null
+    );
 
-    // Prepare payload for n8n
     const payload = {
       webhookType: "generate_emails",
-      leads: validLeads.map(lead => ({
+      leads: validLeads.map((lead: Doc<"leads">) => ({
         leadId: lead._id,
         email: lead.email,
         companyName: lead.companyName,
@@ -43,7 +55,6 @@ export const triggerEmailGeneration = action({
       })),
     };
 
-    // Call n8n webhook
     try {
       const response = await fetch(webhookUrl, {
         method: "POST",
@@ -68,8 +79,7 @@ export const triggerEmailSending = action({
   args: {
     emailIds: v.array(v.id("emails")),
   },
-  handler: async (ctx, args) => {
-    // Get n8n webhook URL from settings
+  handler: async (ctx, args): Promise<{ success: boolean; emailsSent: number }> => {
     const setting = await ctx.runQuery(api.settings.get, { 
       key: "n8n_webhook_send_url" 
     });
@@ -81,36 +91,46 @@ export const triggerEmailSending = action({
     const webhookUrl = setting.value as string;
 
     // Get email data
-    const emails = await Promise.all(
-      args.emailIds.map(id => ctx.runQuery(api.emails.get, { id }))
+    const emails: (Doc<"emails"> | null)[] = await Promise.all(
+      args.emailIds.map((id: Id<"emails">) => ctx.runQuery(api.emails.get, { id }))
     );
 
-    const validEmails = emails.filter(email => 
+    const validEmails: Doc<"emails">[] = emails.filter((email): email is Doc<"emails"> => 
       email !== null && email.status === "approved"
     );
 
-    // Get from address from settings
     const fromSetting = await ctx.runQuery(api.settings.get, { 
       key: "from_email_address" 
     });
-    const fromAddress = fromSetting?.value || "you@agency.com";
+    const fromAddress: string = (fromSetting?.value as string) || "you@agency.com";
 
-    // Prepare payload for n8n
+    // Join Leads to Emails (Convex doesn't do this automatically in actions)
+    const emailsWithLeads: (EmailWithLead | null)[] = await Promise.all(
+      validEmails.map(async (email: Doc<"emails">) => {
+        const lead = await ctx.runQuery(api.leads.get, { id: email.leadId });
+        if (!lead) return null;
+        return { email, lead };
+      })
+    );
+
+    const activePairs: EmailWithLead[] = emailsWithLeads.filter(
+      (pair): pair is EmailWithLead => pair !== null
+    );
+
     const payload = {
       webhookType: "send_emails",
-      emails: validEmails.map(email => ({
+      emails: activePairs.map(({ email, lead }: EmailWithLead) => ({
         emailId: email._id,
         leadId: email.leadId,
-        to: email.lead.email,
-        toName: email.lead.fullName || email.lead.firstName,
+        to: lead.email,
+        toName: lead.fullName || lead.firstName,
         subject: email.subject,
         body: email.body,
         fromAddress,
-        provider: "gmail", // Default to gmail for now
+        provider: "gmail",
       })),
     };
 
-    // Call n8n webhook
     try {
       const response = await fetch(webhookUrl, {
         method: "POST",
@@ -122,7 +142,7 @@ export const triggerEmailSending = action({
         throw new Error(`n8n webhook failed: ${response.statusText}`);
       }
 
-      return { success: true, emailsSent: validEmails.length };
+      return { success: true, emailsSent: activePairs.length };
     } catch (error) {
       console.error("Failed to trigger email sending:", error);
       throw error;
@@ -130,10 +150,10 @@ export const triggerEmailSending = action({
   },
 });
 
-// HTTP Router for incoming n8n webhooks
+// --- HTTP ROUTER ---
+
 const http = httpRouter();
 
-// Webhook: Receive email generation results from n8n
 http.route({
   path: "/webhook/email-generated",
   method: "POST",
@@ -141,12 +161,10 @@ http.route({
     const body = await request.json();
 
     try {
-      // Validate payload
       if (!body.leadId || !body.subject || !body.body) {
         return new Response("Invalid payload", { status: 400 });
       }
 
-      // Create email record
       await ctx.runMutation(internal.emails.create, {
         leadId: body.leadId,
         subject: body.subject,
@@ -168,7 +186,6 @@ http.route({
   }),
 });
 
-// Webhook: Receive email sent confirmation from n8n
 http.route({
   path: "/webhook/email-sent",
   method: "POST",
@@ -176,12 +193,10 @@ http.route({
     const body = await request.json();
 
     try {
-      // Validate payload
       if (!body.emailId || !body.messageId || !body.provider) {
         return new Response("Invalid payload", { status: 400 });
       }
 
-      // Mark email as sent
       await ctx.runMutation(internal.emails.markSent, {
         id: body.emailId,
         messageId: body.messageId,

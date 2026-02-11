@@ -1,6 +1,8 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { auth } from "./auth";
+
+// --- QUERIES (Publicly accessible by your Frontend) ---
 
 // Query: Get emails with optional filters
 export const list = query({
@@ -58,8 +60,10 @@ export const get = query({
   },
 });
 
+// --- INTERNAL MUTATIONS (Private: Called by http.ts/webhooks) ---
+
 // Mutation: Create email (called by n8n webhook)
-export const create = mutation({
+export const create = internalMutation({
   args: {
     leadId: v.id("leads"),
     subject: v.string(),
@@ -84,6 +88,44 @@ export const create = mutation({
     return emailId;
   },
 });
+
+// Mutation: Mark as sent (called by n8n webhook)
+export const markSent = internalMutation({
+  args: {
+    id: v.id("emails"),
+    messageId: v.string(),
+    provider: v.union(v.literal("gmail"), v.literal("outlook")),
+  },
+  handler: async (ctx, args) => {
+    const email = await ctx.db.get(args.id);
+    if (!email) throw new Error("Email not found");
+
+    await ctx.db.patch(args.id, {
+      status: "sent",
+      sentAt: new Date().toISOString(),
+      messageId: args.messageId,
+      provider: args.provider,
+    });
+
+    // Update lead status
+    await ctx.db.patch(email.leadId, {
+      status: "sent",
+      lastContactedAt: new Date().toISOString(),
+    });
+
+    // Create tracking record
+    await ctx.db.insert("emailTracking", {
+      emailId: args.id,
+      leadId: email.leadId,
+      messageId: args.messageId,
+      opened: false,
+      replied: false,
+      clicks: 0,
+    });
+  },
+});
+
+// --- PUBLIC MUTATIONS (Callable by your Frontend) ---
 
 // Mutation: Update email content
 export const update = mutation({
@@ -135,42 +177,6 @@ export const reject = mutation({
 
     await ctx.db.patch(args.id, {
       status: "rejected",
-    });
-  },
-});
-
-// Mutation: Mark as sent (called by n8n webhook)
-export const markSent = mutation({
-  args: {
-    id: v.id("emails"),
-    messageId: v.string(),
-    provider: v.union(v.literal("gmail"), v.literal("outlook")),
-  },
-  handler: async (ctx, args) => {
-    const email = await ctx.db.get(args.id);
-    if (!email) throw new Error("Email not found");
-
-    await ctx.db.patch(args.id, {
-      status: "sent",
-      sentAt: new Date().toISOString(),
-      messageId: args.messageId,
-      provider: args.provider,
-    });
-
-    // Update lead status
-    await ctx.db.patch(email.leadId, {
-      status: "sent",
-      lastContactedAt: new Date().toISOString(),
-    });
-
-    // Create tracking record
-    await ctx.db.insert("emailTracking", {
-      emailId: args.id,
-      leadId: email.leadId,
-      messageId: args.messageId,
-      opened: false,
-      replied: false,
-      clicks: 0,
     });
   },
 });
